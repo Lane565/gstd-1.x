@@ -60,6 +60,7 @@ extern gint read_history ();
 #define GSTD_CLIENT_DEFAULT_INET_ADDRESS "localhost"
 #define GSTD_CLIENT_DEFAULT_UNIX_ADDRESS "/tmp/gstd_default_unix_socket"
 #define GSTD_CLIENT_DEFAULT_PORT 5000
+#define GSTD_CLIENT_DEFAULT_UNIX_PORT 1
 
 typedef struct _GstdClientData GstdClientData;
 typedef struct _GstdClientCmd GstdClientCmd;
@@ -79,6 +80,7 @@ struct _GstdClientData
   gboolean use_unix;
   gchar *prompt;
   guint port;
+  guint unix_port;
   gchar *address;
   GSocketClient *client;
   GSocketConnection *con;
@@ -278,6 +280,7 @@ main (gint argc, gchar * argv[])
   gboolean use_unix;
   gchar *file;
   guint port;
+  guint unix_port;
   gchar *address;
   gchar **remaining;
   GOptionEntry entries[] = {
@@ -308,6 +311,10 @@ main (gint argc, gchar * argv[])
           "The server unix path (defaults to "
           GSTD_CLIENT_DEFAULT_UNIX_ADDRESS ")", "path"}
     ,
+    {"unix-port", 'e', 0, G_OPTION_ARG_INT, &unix_port,
+          "Attach to the server through the given port (default 0)",
+        "unix-port"}
+    ,
     {"version", 'v', 0, G_OPTION_ARG_NONE, &version,
           "Print current gstd-client version", NULL}
     ,
@@ -324,6 +331,7 @@ main (gint argc, gchar * argv[])
   version = FALSE;
   inter = FALSE;
   port = GSTD_CLIENT_DEFAULT_PORT;
+  unix_port = GSTD_CLIENT_DEFAULT_UNIX_PORT;
   address = NULL;
   quiet = FALSE;
   use_unix = FALSE;
@@ -370,6 +378,7 @@ main (gint argc, gchar * argv[])
   data->quiet = quiet;
   data->prompt = prompt;
   data->port = port;
+  data->unix_port = unix_port;
   data->address = address;
   data->use_unix = use_unix;
   data->client = g_socket_client_new ();
@@ -557,7 +566,9 @@ gstd_client_cmd_tcp (gchar * name, gchar * arg, GstdClientData * data)
       GSocketAddress *socket_address;
       g_socket_client_set_family (data->client,
                                 G_SOCKET_FAMILY_UNIX);
-      socket_address = g_unix_socket_address_new (data->address);
+			gchar * path_name = g_strdup_printf ("%s_%d", data->address, data->unix_port);
+      socket_address = g_unix_socket_address_new (path_name);
+      g_free (path_name);
 
       data->con = g_socket_client_connect (data->client,
                            (GSocketConnectable *) socket_address,
